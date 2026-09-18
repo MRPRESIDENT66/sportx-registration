@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: sportx-registration
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3307/flash_registration?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6380}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5673}
+    username: guest
+    password: guest
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2
+          max-interval: 5000ms
+        default-requeue-rejected: false
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
