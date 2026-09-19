@@ -176,6 +176,20 @@ HAVING COUNT(*) > 1;
 
 本地一次真实运行的原始压测输出与 SQL 结果见 [`docs/load-test-result.md`](docs/load-test-result.md)。其中 `1093.63 requests/s` 是包含售罄后业务拒绝在内的总 HTTP 响应吞吐，不能表述为成功报名 TPS。
 
+### 本次运行截图
+
+本次使用 `wrk -t8 -c100 -d30s` 进行 100 并发连接压测，得到 `1298.45 requests/s`、平均延迟 `76.30 ms`。活动售罄后产生的非 2xx 响应属于预期业务拒绝，最终正确性由下方 MySQL 结果核验。
+
+![wrk 压测结果](docs/images/wrk-result.png)
+
+MySQL 最终状态显示活动 `10001` 的 `joined_slots = 50`，报名记录数与不同用户数均为 `50`，重复报名查询为空，证明没有超卖或重复报名。
+
+![MySQL 一致性校验](docs/images/mysql-result.png)
+
+消费者失败后的事件 `54` 被投递到 `registration.events.dlq` 并记录为失败消息。人工回放一次后，记录状态变为 `REPLAYED`，同一事件最终写入报名成功通知。
+
+![DLQ 回放结果](docs/images/dlq-replay-result.png)
+
 ## 目录说明
 
 ```text
