@@ -30,3 +30,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+
+# Optional: set ALERT_WEBHOOK_URL to send a DLQ alert to Feishu, Slack, etc.
+alert:
+  webhook-url: ${ALERT_WEBHOOK_URL:}

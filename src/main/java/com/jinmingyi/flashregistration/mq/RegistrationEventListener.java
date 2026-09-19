@@ -1,6 +1,7 @@
 package com.jinmingyi.flashregistration.mq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jinmingyi.flashregistration.alert.DlqAlertService;
 import com.jinmingyi.flashregistration.entity.FailedMessage;
 import com.jinmingyi.flashregistration.entity.Notification;
 import com.jinmingyi.flashregistration.event.RegistrationSucceededEvent;
@@ -22,6 +23,7 @@ public class RegistrationEventListener {
     private final NotificationMapper notificationMapper;
     private final FailedMessageMapper failedMessageMapper;
     private final ObjectMapper objectMapper;
+    private final DlqAlertService dlqAlertService;
 
     @RabbitListener(queues = RabbitNames.QUEUE)
     public void onRegistrationSucceeded(RegistrationSucceededEvent event) {
@@ -63,5 +65,6 @@ public class RegistrationEventListener {
             // Preserve an unparsable dead letter for investigation instead of discarding it.
         }
         failedMessageMapper.insert(failed);
+        dlqAlertService.notifyDeadLetter(failed);
     }
 }
