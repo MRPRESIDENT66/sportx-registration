@@ -1,5 +1,6 @@
 package com.jinmingyi.flashregistration.controller;
 
+import com.jinmingyi.flashregistration.annotation.RateLimit;
 import com.jinmingyi.flashregistration.common.ApiResponse;
 import com.jinmingyi.flashregistration.service.RegistrationService;
 import com.jinmingyi.flashregistration.service.impl.RegistrationServiceImpl.RegistrationResult;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class RegistrationController {
     private final RegistrationService registrationService;
 
+    @RateLimit(limit = 5, windowSeconds = 1)
     @PostMapping("/{activityId}/registrations")
     public ApiResponse<RegistrationResult> register(
             @PathVariable @Positive Long activityId,

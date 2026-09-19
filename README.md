@@ -18,6 +18,7 @@
 - **Relay 锁安全性**：多实例 Relay 使用 Redisson `RLock` 竞争任务执行权。它支持持锁者校验和可重入语义，避免手写 `SETNX + TTL` 方案中锁过期后旧实例误删新实例锁的风险。
 - **可验证的故障恢复**：通过受控消费者异常，真实演示消费重试、DLQ 落库和修复后手动回放，而非只在 README 中描述理论流程。
 - **可选 Webhook 告警**：DLQ 消息持久化后，系统向 `ALERT_WEBHOOK_URL` 发送事件摘要；未配置时记录结构化 `ERROR` 日志。告警失败只记录日志，不会触发 DLQ 消费死循环。
+- **声明式限流**：通过自定义 `@RateLimit` 与 Spring AOP 为报名接口接入 Redis Lua 滑动窗口；脚本原子完成过期请求清理、窗口计数和请求写入，在多实例下仍严格限制同一用户每秒最多 5 次请求。
 
 ## 架构流程
 
@@ -43,6 +44,23 @@
 | 数据层 | `UNIQUE(user_id, activity_id)` | 最终兜底，保证一个用户无法落两条同一活动的报名记录。 |
 
 Redis 锁不是最终正确性的唯一保障：锁租约可能到期，用户也可能顺序重复请求。因此，原子条件更新和唯一索引才是最终边界。
+
+## 声明式接口限流
+
+报名接口标注了 `@RateLimit(limit = 5, windowSeconds = 1)`。Spring AOP 在 Controller 执行前调用 Redis Lua 脚本，以 `rate_limit:RegistrationController:register:{userId}` 作为 ZSet Key：脚本删除窗口外请求、统计窗口内请求数、记录本次请求三个步骤在 Redis 中原子完成。
+
+选择滑动窗口而非令牌桶，是为了对“任意最近 1 秒最多 5 次请求”提供严格限制；令牌桶更适合允许短时突发、按速率平滑放行的场景。限流状态保存在 Redis，因此多实例部署仍共享同一用户的额度。超过阈值时返回 HTTP `429 Too Many Requests`。
+
+
+可使用不存在的活动 ID 做无副作用验证，前 5 次会通过限流层并返回业务 `400`，第 6 次返回 `429`：
+
+```bash
+for i in 1 2 3 4 5 6; do
+  curl -sS -o /dev/null -w "request $i -> HTTP %{http_code}\n" \
+    -X POST http://127.0.0.1:8080/activities/99999/registrations \
+    -H "X-User-Id: 777777"
+done
+```
 
 ## Transactional Outbox
 
